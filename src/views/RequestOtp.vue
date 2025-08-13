@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { requestOtp } from "../services/auth"; // your API call
+import { useRouter } from "vue-router"; 
 
+const router = useRouter(); 
 const email = ref("");
 const result = ref<string>("");
 
 async function handleRequestOtp() {
-  // Frontend validation
   if (!email.value) {
     result.value = "Email is required";
     return;
@@ -16,7 +17,11 @@ async function handleRequestOtp() {
     const res = await requestOtp(email.value);
 
     if (res.success) {
-      result.value = res.message || "No message provided";
+      result.value = res.message || "OTP sent";
+
+      // Redirect to Verify page and pass email as query param
+      router.push({ name: "Verify", query: { email: email.value } });
+      
     } else if (res.errors) {
       result.value = Object.values(res.errors).join(", ");
     } else {
@@ -35,6 +40,7 @@ async function handleRequestOtp() {
     }
   }
 }
+
 </script>
 
 <template>

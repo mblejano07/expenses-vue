@@ -3,9 +3,13 @@ import RequestOtp from "../views/RequestOtp.vue"; // relative to router.ts
 import Verify from "../views/Verify.vue";          // relative to router.ts
 
 const routes = [
-  { path: "/", redirect: "/verify" },
+  { path: "/", redirect: "/request" },
   { path: "/request", component: RequestOtp },
-  { path: "/verify", component: Verify },
+  {
+    path: "/verify",
+    name: "Verify", // Add a name to this route
+    component: Verify,
+  },
 ];
 
 const router = createRouter({
