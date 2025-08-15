@@ -1,11 +1,25 @@
 import { createRouter, createWebHistory } from "vue-router";
-import RequestOtp from "../views/RequestOtp.vue"; // relative to router.ts
-import Verify from "../views/Verify.vue";          // relative to router.ts
+import RequestOtp from "../views/RequestOtp.vue"; 
+import Verify from "../views/Verify.vue";          
+import InvoiceForm from "../views/InvoiceForm.vue";          
 
 const routes = [
-  { path: "/", redirect: "/verify" },
-  { path: "/request", component: RequestOtp },
-  { path: "/verify", component: Verify },
+  { path: "/", redirect: "/request" },
+  { 
+    path: "/request", 
+    name: "RequestOtp", 
+    component: RequestOtp 
+  },
+  {
+    path: "/verify",
+    name: "Verify",
+    component: Verify,
+  },
+  {
+    path: "/create-invoice",
+    name: "CreateInvoice",
+    component: InvoiceForm,
+  },
 ];
 
 const router = createRouter({
