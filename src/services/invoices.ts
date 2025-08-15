@@ -1,5 +1,11 @@
 import { apiFetch } from "./api";
 
+// This file contains the API interfaces and functions for handling invoices.
+
+/**
+ * Interface for a single invoice item.
+ * @interface
+ */
 export interface InvoiceItem {
   id: number;
   particulars: string;
@@ -9,6 +15,10 @@ export interface InvoiceItem {
   amount: number;
 }
 
+/**
+ * Interface for the full invoice document.
+ * @interface
+ */
 export interface Invoice {
   reference_id: string;
   company_name: string;
@@ -38,15 +48,25 @@ export interface Invoice {
   remarks?: string;
 }
 
+/**
+ * Interface for the response from the listInvoices API call.
+ * Now includes the last_evaluated_key for pagination.
+ * @interface
+ */
 export interface ListInvoicesResponse {
   success: boolean;
   message?: string;
   data?: {
     invoices: Invoice[];
+    last_evaluated_key: string | null;
   };
   errors?: Record<string, string>;
 }
 
+/**
+ * Interface for the payload sent when creating an invoice.
+ * @interface
+ */
 export interface InvoicePayload {
     company_name: string;
     tin: string;
@@ -61,9 +81,21 @@ export interface InvoicePayload {
     file?: File; // Optional file for multipart
 }
 
-export async function listInvoices(): Promise<ListInvoicesResponse> {
+/**
+ * Fetches a paginated list of invoices from the API.
+ * @param {string | null} lastEvaluatedKey - The key from the previous page for pagination.
+ * @returns {Promise<ListInvoicesResponse>} - The API response.
+ */
+export async function listInvoices(lastEvaluatedKey: string | null = null): Promise<ListInvoicesResponse> {
     try {
-        const res = await apiFetch<ListInvoicesResponse>("/invoices", {
+        const queryParams = new URLSearchParams();
+        if (lastEvaluatedKey) {
+            queryParams.append("last_evaluated_key", lastEvaluatedKey);
+        }
+        // Add the limit parameter with a value of 10
+        queryParams.append("limit", "10");
+
+        const res = await apiFetch<ListInvoicesResponse>(`/invoices?${queryParams.toString()}`, {
             method: "GET",
         });
 
@@ -82,7 +114,12 @@ export async function listInvoices(): Promise<ListInvoicesResponse> {
     }
 }
 
-// CORRECTED FUNCTION
+/**
+ * Creates a new invoice by submitting a payload to the API.
+ * Supports both JSON and multipart form data (if a file is present).
+ * @param {InvoicePayload} payload - The invoice data to be sent.
+ * @returns {Promise<any>} - The API response.
+ */
 export async function createInvoice(payload: InvoicePayload): Promise<any> {
     try {
         if (payload.file) {
