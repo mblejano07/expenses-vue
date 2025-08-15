@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import InvoiceItemsTable from "@/components/InvoiceItemsTable.vue";
 import { listEmployees, type Employee } from "@/services/employees";
+import { createInvoice } from "@/services/invoices"; // Import the new createInvoice function
 
 // Define the data structure for the form to match your JSON
 const invoiceData = ref({
@@ -13,6 +14,7 @@ const invoiceData = ref({
   transaction_date: new Date().toISOString().slice(0, 10), // Default to today's date
   items: [
     {
+      id: 1, // Add id for each item
       particulars: "",
       project_class: "",
       account: "",
@@ -24,6 +26,7 @@ const invoiceData = ref({
   payee: "",
   payee_account: "",
   approver: "",
+  remarks: "", // New remarks field
 });
 
 const result = ref<string>("");
@@ -31,9 +34,13 @@ const allEmployees = ref<Employee[]>([]);
 const approvers = ref<Employee[]>([]);
 const encodingDate = ref<string>("");
 
+// Counter for generating unique item IDs on the client side
+let nextItemId = 2;
+
 const router = useRouter(); // Use the router
 
-// A helper function to decode a JWT token
+// A helper function to decode a JWT token.
+// This is kept here to get the user's email, but manual fetch logic is removed.
 function decodeJwt(token: string) {
   try {
     const base64Url = token.split('.')[1];
@@ -51,6 +58,7 @@ function decodeJwt(token: string) {
 // Function to add a new item row to the items array
 const addItem = () => {
   invoiceData.value.items.push({
+    id: nextItemId++,
     particulars: "",
     project_class: "",
     account: "",
@@ -79,12 +87,55 @@ const handlePayeeChange = () => {
   }
 };
 
-// Function to handle form submission
-const handleSubmit = () => {
-  // This is where you would call your API to submit the data.
-  // For now, we'll just log the data and show a success message.
-  console.log("Submitting invoice data:", invoiceData.value);
-  result.value = "Invoice form submitted successfully!";
+// Function to handle form submission, now using the createInvoice helper
+const handleSubmit = async () => {
+  // Clear any previous result message
+  result.value = "Submitting...";
+
+  // Get the current user's email from the JWT
+  const token = localStorage.getItem("authToken");
+  let userEmail = null;
+  if (token) {
+    const decodedToken = decodeJwt(token);
+    if (decodedToken && decodedToken.exp && decodedToken.exp * 1000 > Date.now()) {
+      userEmail = decodedToken.email;
+    }
+  }
+
+  // Find the employee IDs based on the selected names
+  const encoderEmployee = allEmployees.value.find(emp => emp.email.toLowerCase() === userEmail.toLowerCase());
+  const payeeEmployee = allEmployees.value.find(emp => `${emp.first_name} ${emp.last_name}` === invoiceData.value.payee);
+  const approverEmployee = allEmployees.value.find(emp => `${emp.first_name} ${emp.last_name}` === invoiceData.value.approver);
+
+  // Check if all necessary employees were found
+  if (!encoderEmployee || !payeeEmployee || !approverEmployee) {
+    result.value = "Error: Could not find one or more employees. Please ensure all selections are valid.";
+    return;
+  }
+
+  // Create a payload that matches the API's expected structure
+  const payload = {
+    company_name: invoiceData.value.company_name,
+    tin: invoiceData.value.tin,
+    invoice_number: invoiceData.value.invoice_number,
+    transaction_date: invoiceData.value.transaction_date,
+    items: invoiceData.value.items,
+    encoder: encoderEmployee.employee_id,
+    payee: payeeEmployee.employee_id,
+    payee_account: invoiceData.value.payee_account,
+    approver: approverEmployee.employee_id,
+    remarks: invoiceData.value.remarks,
+  };
+
+  try {
+    const responseData = await createInvoice(payload);
+
+    result.value = "Invoice created successfully!";
+    console.log("API response:", responseData);
+  } catch (err: any) {
+    console.error("API call failed:", err);
+    result.value = `Error submitting form: ${err.message}`;
+  }
 };
 
 // Fetch employee data and auto-fill the encoder field on component mount
@@ -176,7 +227,6 @@ onMounted(async () => {
 
         <!-- Section: Other Invoice Details -->
         <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
-      
           <div>
             <label for="payee" class="block text-sm font-medium text-gray-700">Payee</label>
             <select v-model="invoiceData.payee" @change="handlePayeeChange" id="payee" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -198,6 +248,11 @@ onMounted(async () => {
                 {{ approver.first_name }} {{ approver.last_name }}
               </option>
             </select>
+          </div>
+          <!-- New Remarks field -->
+          <div>
+            <label for="remarks" class="block text-sm font-medium text-gray-700">Remarks</label>
+            <textarea v-model="invoiceData.remarks" id="remarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
           </div>
         </div>
 
