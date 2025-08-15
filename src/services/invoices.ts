@@ -1,6 +1,5 @@
-import { apiFetch } from "./api"; // Use the custom fetch wrapper
+import { apiFetch } from "./api";
 
-// Define the data structure for an invoice item
 export interface InvoiceItem {
   id: number;
   particulars: string;
@@ -10,17 +9,6 @@ export interface InvoiceItem {
   amount: number;
 }
 
-// Interface for the employee object
-export interface Employee {
-  employee_id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  account_number: string;
-  is_approver: boolean;
-}
-
-// Interface for a single invoice record (as received from the backend)
 export interface Invoice {
   reference_id: string;
   company_name: string;
@@ -28,83 +16,104 @@ export interface Invoice {
   invoice_number: string;
   transaction_date: string;
   items: InvoiceItem[];
-  encoder: Employee;
-  payee: Employee;
+  encoder: {
+    employee_id: string;
+    first_name: string;
+    last_name: string;
+  };
+  payee: {
+    employee_id: string;
+    first_name: string;
+    last_name: string;
+  };
   payee_account: string;
-  approver: Employee;
+  approver: {
+    employee_id: string;
+    first_name: string;
+    last_name: string;
+  };
   file_url: string;
   encoding_date: string;
-  status: string;
-  remarks: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  remarks?: string;
 }
 
-// Interface for a single invoice record (as sent to the backend)
-// Note: `reference_id` is removed because the backend generates it now.
-export interface InvoicePayload {
-  company_name: string;
-  tin: string;
-  invoice_number: string;
-  transaction_date: string;
-  items: InvoiceItem[];
-  encoder: string;
-  payee: string;
-  payee_account: string;
-  approver: string;
-  remarks: string;
-}
-
-// Interface for the API response after creating an invoice
-export interface CreateInvoiceResponse {
+export interface ListInvoicesResponse {
   success: boolean;
-  message: string;
-  data: Invoice;
-  errors: any;
-}
-
-// Interface for the API response containing a list of invoices
-export interface InvoiceListResponse {
-  success: boolean;
-  status: number;
-  message: string;
-  data: {
+  message?: string;
+  data?: {
     invoices: Invoice[];
-    last_evaluated_key: any;
   };
-  errors: any;
+  errors?: Record<string, string>;
 }
 
-/**
- * Creates a new invoice by sending a POST request to the API.
- * The backend is now responsible for generating the reference_id.
- * @param payload The invoice data to be sent.
- * @returns A Promise that resolves to the API response.
- */
-export async function createInvoice(payload: InvoicePayload): Promise<CreateInvoiceResponse> {
-  const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.success) {
-    throw new Error(res.message || res.errors);
-  }
-  return res;
+export interface InvoicePayload {
+    company_name: string;
+    tin: string;
+    invoice_number: string;
+    transaction_date: string;
+    items: Omit<InvoiceItem, 'id'>[];
+    encoder: string;
+    payee: string;
+    payee_account: string;
+    approver: string;
+    remarks?: string;
+    file?: File;
 }
 
-/**
- * Gets a list of all invoices by sending a GET request to the API.
- * @returns A Promise that resolves to the list of invoices.
- */
-export async function listInvoices(): Promise<InvoiceListResponse> {
-  const res = await apiFetch<InvoiceListResponse>("/invoices", {
-    method: "GET",
-  });
+// The backend now handles all filtering, so this function no longer needs
+// an 'encoder' parameter.
+export async function listInvoices(): Promise<ListInvoicesResponse> {
+    try {
+        const res = await apiFetch<ListInvoicesResponse>("/invoices", {
+            method: "GET",
+        });
 
-  if (!res.success) {
-    throw new Error(res.message || res.errors);
-  }
-  return res;
+        return {
+            success: res.success ?? false,
+            message: res.message,
+            data: res.data,
+            errors: res.errors,
+        };
+    } catch (err: any) {
+        return {
+            success: false,
+            message: err.message || "Network error",
+            errors: undefined,
+        };
+    }
+}
+
+// CORRECTED FUNCTION
+export async function createInvoice(payload: InvoicePayload): Promise<any> {
+    try {
+        if (payload.file) {
+            // Case 1: A file is present, so we use multipart/form-data
+            const formData = new FormData();
+            const jsonPayload = { ...payload };
+            delete jsonPayload.file;
+
+            formData.append("body", JSON.stringify(jsonPayload));
+            formData.append("file", payload.file);
+
+            const res = await apiFetch("/invoices", {
+                method: "POST",
+                body: formData,
+            });
+
+            return res;
+        } else {
+            // Case 2: No file is present, so we send a standard JSON body
+            const res = await apiFetch("/invoices", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            return res;
+        }
+    } catch (err: any) {
+        throw err;
+    }
 }
