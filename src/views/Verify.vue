@@ -41,7 +41,7 @@ async function handleVerify() {
       // localStorage.setItem('refreshToken', res.data.refresh_token);
 
       // Redirect to a success page or login page after successful verification
-      router.push({ name: 'CreateInvoice' }); // <-- Redirect to your desired page
+      router.push({ name: 'ListInvoice' }); // <-- Redirect to your desired page
     } else if (res.errors) {
       // Combine all field-level errors into a readable string
       result.value = Object.values(res.errors).join(", ");
