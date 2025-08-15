@@ -145,7 +145,7 @@ onMounted(async () => {
           </div>
         </div>
         <h2 class="mt-4 text-3xl font-bold tracking-tight text-gray-900">
-          Create New Invoice
+          Create New Re-imbursement
         </h2>
       </div>
 
@@ -165,7 +165,7 @@ onMounted(async () => {
             <label for="invoice_number" class="block text-sm font-medium text-gray-700">Invoice Number</label>
             <input v-model="invoiceData.invoice_number" type="text" id="invoice_number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
           </div>
-          <div class="sm:col-span-2">
+          <div >
             <label for="transaction_date" class="block text-sm font-medium text-gray-700">Transaction Date</label>
             <input v-model="invoiceData.transaction_date" type="date" id="transaction_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
           </div>

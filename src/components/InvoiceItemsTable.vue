@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, defineEmits } from "vue";
+import { defineProps, defineEmits, computed } from "vue";
 
 // Define the interface for an invoice item
 interface InvoiceItem {
@@ -30,6 +30,21 @@ const handleAddItem = () => {
 const handleRemoveItem = (index: number) => {
   emit("removeItem", index);
 };
+
+// Computed property to calculate the total sales from all items
+const totalSales = computed(() => {
+  return props.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+});
+
+// Computed property to calculate the total VAT amount (12% of vatable items)
+const totalVatAmount = computed(() => {
+  return props.items.reduce((sum, item) => {
+    if (item.vatable) {
+      return sum + (item.amount || 0) * 0.12;
+    }
+    return sum;
+  }, 0);
+});
 </script>
 
 <template>
@@ -79,6 +94,20 @@ const handleRemoveItem = (index: number) => {
           </tr>
         </tfoot>
       </table>
+    </div>
+
+    <!-- New card for Total Sales and Total VAT Amount -->
+    <div class="mt-8 flex flex-col sm:flex-row justify-end items-end gap-4">
+      <div class="w-full sm:w-1/2 md:w-1/3 bg-gray-100 p-6 rounded-lg shadow-sm">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-medium text-gray-700">Total Sales:</span>
+          <span class="text-lg font-bold text-gray-900">{{ totalSales.toFixed(2) }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm font-medium text-gray-700">Total VAT Amount (12%):</span>
+          <span class="text-lg font-bold text-gray-900">{{ totalVatAmount.toFixed(2) }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
