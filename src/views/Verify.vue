@@ -30,10 +30,18 @@ async function handleVerify() {
   try {
     const res = await verifyOtp(email.value, otpCode.value);
 
-    if (res.success) {
+    // Check if verification was successful and if the 'data' object exists
+    if (res.success && res.data && res.data.access_token) {
       result.value = res.message || "Verification successful";
+      
+      // Store the access token from the nested data object
+      localStorage.setItem('authToken', res.data.access_token); 
+
+      // You can also store other data like the refresh token if needed
+      // localStorage.setItem('refreshToken', res.data.refresh_token);
+
       // Redirect to a success page or login page after successful verification
-      // router.push({ name: 'Success' });
+      router.push({ name: 'CreateInvoice' }); // <-- Redirect to your desired page
     } else if (res.errors) {
       // Combine all field-level errors into a readable string
       result.value = Object.values(res.errors).join(", ");

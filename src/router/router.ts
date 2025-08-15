@@ -16,7 +16,7 @@ const routes = [
     component: Verify,
   },
   {
-    path: "/form-create",
+    path: "/create-invoice",
     name: "CreateInvoice",
     component: InvoiceForm,
   },

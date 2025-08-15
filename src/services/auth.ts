@@ -1,10 +1,18 @@
 import { apiFetch } from "./api";
 
-// --------------------- Verify OTP ---------------------
+// Define the interface for the nested data object
+export interface VerifyOTPData {
+  access_token: string;
+  refresh_token: string;
+  refresh_expires_at: number;
+}
+
+// --------------------- Verify OTP ---------------------\
 export interface VerifyOTPResponse {
   success: boolean;
   message?: string;
   errors?: Record<string, string>;
+  data?: VerifyOTPData; 
 }
 
 export async function verifyOtp(email: string, otp_code: string): Promise<VerifyOTPResponse> {
@@ -18,6 +26,7 @@ export async function verifyOtp(email: string, otp_code: string): Promise<Verify
       success: res.success ?? false,
       message: res.message,
       errors: res.errors,
+      data: res.data, // Return the data object
     };
   } catch (err: any) {
     return {
@@ -28,11 +37,12 @@ export async function verifyOtp(email: string, otp_code: string): Promise<Verify
   }
 }
 
-// --------------------- Request OTP ---------------------
+// --------------------- Request OTP ---------------------\
 export interface RequestOTPResponse {
   success: boolean;
   message?: string;
   errors?: Record<string, string>;
+  data?: VerifyOTPData; 
 }
 
 export async function requestOtp(email: string): Promise<RequestOTPResponse> {
@@ -50,6 +60,7 @@ export async function requestOtp(email: string): Promise<RequestOTPResponse> {
       success: res.success ?? false,
       message: res.message,
       errors: res.errors,
+      data: res.data, // Return the data object
     };
   } catch (err: any) {
     return {
