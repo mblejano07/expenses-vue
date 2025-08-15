@@ -84,6 +84,19 @@ export interface InvoicePayload {
 }
 
 /**
+ * Interface for the response when creating an invoice.
+ * @interface
+ */
+export interface CreateInvoiceResponse {
+    success: boolean;
+    message?: string;
+    data?: {
+        reference_id: string;
+    };
+    errors?: Record<string, string>;
+}
+
+/**
  * Interface for parameters that can be passed to the listInvoices function.
  */
 export interface ListInvoicesParams {
@@ -139,9 +152,9 @@ export async function listInvoices(params: ListInvoicesParams = {}): Promise<Lis
  * Creates a new invoice by submitting a payload to the API.
  * Supports both JSON and multipart form data (if a file is present).
  * @param {InvoicePayload} payload - The invoice data to be sent.
- * @returns {Promise<any>} - The API response.
+ * @returns {Promise<CreateInvoiceResponse>} - The API response.
  */
-export async function createInvoice(payload: InvoicePayload): Promise<any> {
+export async function createInvoice(payload: InvoicePayload): Promise<CreateInvoiceResponse> {
     try {
         if (payload.file) {
             // Case 1: A file is present, so we use multipart/form-data
@@ -152,7 +165,7 @@ export async function createInvoice(payload: InvoicePayload): Promise<any> {
             formData.append("body", JSON.stringify(jsonPayload));
             formData.append("file", payload.file);
 
-            const res = await apiFetch("/invoices", {
+            const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
                 method: "POST",
                 body: formData,
             });
@@ -160,7 +173,7 @@ export async function createInvoice(payload: InvoicePayload): Promise<any> {
             return res;
         } else {
             // Case 2: No file is present, so we send a standard JSON body
-            const res = await apiFetch("/invoices", {
+            const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',

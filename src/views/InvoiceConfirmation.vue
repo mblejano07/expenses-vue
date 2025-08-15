@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { createInvoice, type InvoicePayload } from "@/services/invoices";
+import { createInvoice, type InvoicePayload, type CreateInvoiceResponse } from "@/services/invoices";
 import ConfirmationCard from "@/components/ConfirmationCard.vue";
+import StatusModal from "@/components/StatusModal.vue";
 
 const router = useRouter();
 const isLoading = ref(false);
-const result = ref<string>("");
+
+// Refs for controlling the modal's state and content
+const isModalVisible = ref(false);
+const modalTitle = ref("");
+const modalMessage = ref("");
+const isSuccess = ref(false);
 
 // Invoice data will now be populated from local storage on component mount
 const invoiceData = ref<InvoicePayload | null>(null);
@@ -28,15 +34,38 @@ const vatAmount = computed(() => {
   return totalSales.value * 0.12;
 });
 
+/**
+ * Shows the modal with the given title, message, and status.
+ * @param title The title for the modal.
+ * @param message The message to display inside the modal.
+ * @param success A boolean indicating if the transaction was successful.
+ */
+const showModal = (title: string, message: string, success: boolean) => {
+  modalTitle.value = title;
+  modalMessage.value = message;
+  isSuccess.value = success;
+  isModalVisible.value = true;
+};
+
+/**
+ * Hides the modal and navigates away if needed.
+ */
+const closeModal = () => {
+  isModalVisible.value = false;
+  // If the transaction was successful, navigate to the invoice list
+  if (isSuccess.value) {
+    router.push('/list-invoice');
+  }
+};
+
 // This function handles the actual API call
 const confirmAndSubmitInvoice = async () => {
   if (!invoiceData.value) {
-    result.value = "Error: No invoice data found.";
+    showModal("Submission Error", "No invoice data found.", false);
     return;
   }
 
   isLoading.value = true;
-  result.value = ""; // Clear previous results
 
   try {
     const payloadToSend: InvoicePayload = { ...invoiceData.value };
@@ -55,18 +84,29 @@ const confirmAndSubmitInvoice = async () => {
       return newItem;
     });
 
-    const response = await createInvoice(payloadToSend);
+    const response: CreateInvoiceResponse = await createInvoice(payloadToSend);
 
     if (response.success) {
-      result.value = "Invoice created successfully!";
-      // Clear local storage after successful submission to prevent stale data
+      // Show success modal with the reference ID
+      const referenceId = response.data?.reference_id;
+      showModal(
+        "Success!",
+        `Invoice submitted successfully with Reference ID: ${referenceId}`,
+        true
+      );
+      // Clear local storage after successful submission
       localStorage.removeItem("pendingInvoiceData");
     } else {
-      result.value = `Error: ${response.message || "An unknown error occurred."}`;
+      // Show error modal with the error message
+      showModal(
+        "Submission Failed",
+        `Error: ${response.message || "An unknown error occurred."}`,
+        false
+      );
     }
   } catch (err: any) {
     console.error("Error creating invoice:", err);
-    result.value = "An unexpected error occurred.";
+    showModal("Submission Failed", "An unexpected error occurred.", false);
   } finally {
     isLoading.value = false;
   }
@@ -80,7 +120,6 @@ const goBackToForm = () => {
 onMounted(() => {
   // Retrieve the data from local storage on component mount
   const storedData = localStorage.getItem('pendingInvoiceData');
-  console.log("Stored Invoice Data:", storedData);
   if (storedData) {
     try {
       // Parse the JSON string back into an object
@@ -108,9 +147,7 @@ onMounted(() => {
             <div><dt class="font-medium text-gray-900">Company Name</dt><dd class="mt-1">{{ invoiceData.company_name }}</dd></div>
             <div><dt class="font-medium text-gray-900">TIN</dt><dd class="mt-1">{{ invoiceData.tin }}</dd></div>
             <div><dt class="font-medium text-gray-900">Invoice Number</dt><dd class="mt-1">{{ invoiceData.invoice_number }}</dd></div>
-            <!-- ✅ THIS IS THE LINE THAT RENDERS THE DATE -->
             <div><dt class="font-medium text-gray-900">Transaction Date</dt><dd class="mt-1">{{ invoiceData.transaction_date }}</dd></div>
-            <!-- We can't display the file name since the File object is not stored in local storage -->
           </dl>
         </ConfirmationCard>
 
@@ -169,7 +206,6 @@ onMounted(() => {
 
         <!-- Action buttons -->
         <div class="flex justify-end space-x-4 pt-6">
-        
           <button @click="confirmAndSubmitInvoice" type="button" :disabled="isLoading" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400">
             <span v-if="isLoading">Submitting...</span>
             <span v-else>Confirm & Submit</span>
@@ -178,9 +214,6 @@ onMounted(() => {
             Go Back
           </button>
         </div>
-        <p v-if="result" class="mt-4 text-center" :class="{'text-green-600': result.includes('successfully'), 'text-red-600': result.includes('Error')}">
-          {{ result }}
-        </p>
       </div>
       <div v-else class="text-center p-12 bg-white rounded-lg shadow-xl">
         <h2 class="text-2xl font-bold text-gray-900">No Invoice Data Found</h2>
@@ -191,4 +224,13 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- The Status Modal component -->
+  <StatusModal
+    :is-visible="isModalVisible"
+    :title="modalTitle"
+    :message="modalMessage"
+    :is-success="isSuccess"
+    @close="closeModal"
+  />
 </template>
