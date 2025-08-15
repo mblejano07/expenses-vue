@@ -1,16 +1,16 @@
 import { apiFetch } from "./api";
 
 // Define the interface for a single employee record
+// Possible values for access_role include: "admin", "accounting_budget", "approver", "standard"
 export interface Employee {
     employee_id: string;
     first_name: string;
     last_name: string;
     email: string;
     account_number: string;
-    is_approver: boolean;
+    access_role: string[]; 
 }
 
-// Define the response structure from the new API endpoint
 export interface ListEmployeesResponse {
     success: boolean;
     message?: string;
