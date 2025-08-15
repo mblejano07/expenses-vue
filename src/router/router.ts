@@ -3,9 +3,16 @@ import RequestOtp from "../views/RequestOtp.vue";
 import Verify from "../views/Verify.vue";
 import InvoiceForm from "../views/InvoiceForm.vue";
 import InvoiceList from "../views/InvoiceList.vue";
+import InvoiceConfirm from "../views/InvoiceConfirmation.vue";
 
 const routes = [
-  { path: "/", redirect: "/list-invoice" }, // I've changed this to redirect to the list view by default
+  { path: "/", redirect: "/request" }, 
+  {
+    path: "/confirm-invoice",
+    name: "InvoiceConfirm",
+    component: InvoiceConfirm,
+    meta: { requiresAuth: true } // This route does not require authentication
+  },
   {
     path: "/request",
     name: "RequestOtp",

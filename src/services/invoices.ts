@@ -58,11 +58,9 @@ export interface InvoicePayload {
     payee_account: string;
     approver: string;
     remarks?: string;
-    file?: File;
+    file?: File; // Optional file for multipart
 }
 
-// The backend now handles all filtering, so this function no longer needs
-// an 'encoder' parameter.
 export async function listInvoices(): Promise<ListInvoicesResponse> {
     try {
         const res = await apiFetch<ListInvoicesResponse>("/invoices", {

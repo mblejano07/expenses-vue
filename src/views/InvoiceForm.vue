@@ -3,7 +3,8 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import InvoiceItemsTable from "@/components/InvoiceItemsTable.vue";
 import { listEmployees, type Employee } from "@/services/employees";
-import { createInvoice, type InvoicePayload } from "@/services/invoices";
+import { type InvoicePayload } from "@/services/invoices";
+import { type ListEmployeesResponse } from "@/services/employees";
 
 // Define the data structure for the form to match your JSON
 const invoiceData = ref<InvoicePayload & { file?: File }>({
@@ -33,10 +34,7 @@ const allEmployees = ref<Employee[]>([]);
 const approvers = ref<Employee[]>([]);
 const encodingDate = ref<string>("");
 
-// Counter for generating unique item IDs on the client side
-let nextItemId = 2;
-
-const router = useRouter(); // Use the router
+const router = useRouter();
 
 // A helper function to decode a JWT token.
 function decodeJwt(token: string) {
@@ -64,7 +62,6 @@ const handleFileChange = (event: Event) => {
 };
 
 const handleAddItem = () => {
-  // Add a new item with a unique ID
   invoiceData.value.items.push({
     particulars: "",
     project_class: "",
@@ -75,7 +72,6 @@ const handleAddItem = () => {
 };
 
 const handleRemoveItem = (index: number) => {
-  // Remove the item at the specified index
   if (invoiceData.value.items.length > 1) {
     invoiceData.value.items.splice(index, 1);
   }
@@ -83,7 +79,6 @@ const handleRemoveItem = (index: number) => {
 
 // Watch for changes in the selected payee to auto-fill the payee_account
 const handlePayeeChange = () => {
-  // Now find the employee by email since the v-model holds the email
   const selectedPayee = allEmployees.value.find(
     (emp) => emp.email === invoiceData.value.payee
   );
@@ -94,57 +89,18 @@ const handlePayeeChange = () => {
   }
 };
 
+// Function to handle form submission
+const handleSubmit = () => {
+  // ✅ This is the correct line to store the form data in localStorage before navigating
+  localStorage.setItem('pendingInvoiceData', JSON.stringify(invoiceData.value));
+  // Navigate to the confirmation page
+  router.push("/confirm-invoice");
+};
 
-// Function to handle form submission, now using the createInvoice helper
-const handleSubmit = async () => {
-  result.value = "Submitting...";
-
-  // Find the employee IDs based on the selected emails
-  // The encoder email is already set correctly in onMounted
-  const encoderEmployee = allEmployees.value.find(
-    (emp) => emp.email === invoiceData.value.encoder
-  );
-  const payeeEmployee = allEmployees.value.find(
-    (emp) => emp.email === invoiceData.value.payee
-  );
-  const approverEmployee = approvers.value.find(
-    (emp) => emp.email === invoiceData.value.approver
-  );
-
-  // Check if all necessary employees were found
-  if (!encoderEmployee || !payeeEmployee || !approverEmployee) {
-    result.value = "Error: Could not find one or more employees. Please ensure all selections are valid.";
-    return;
-  }
-  
-  // Create a payload that matches the API's expected structure, using emails
-  const payload: InvoicePayload = {
-    company_name: invoiceData.value.company_name,
-    tin: invoiceData.value.tin,
-    invoice_number: invoiceData.value.invoice_number,
-    transaction_date: invoiceData.value.transaction_date,
-    items: invoiceData.value.items,
-    encoder: encoderEmployee.email, // Use email
-    payee: payeeEmployee.email, // Use email
-    payee_account: invoiceData.value.payee_account,
-    approver: approverEmployee.email, // Use email
-    remarks: invoiceData.value.remarks,
-    file: invoiceData.value.file, // Include the file
-  };
-
-  try {
-    const response = await createInvoice(payload);
-
-    if (response.success) {
-      result.value = "Successfully submitted!";
-      router.push("/list-invoice");
-    } else {
-      result.value = `Submission failed: ${response.message}`;
-    }
-  } catch (err: any) {
-    console.error("API call failed:", err);
-    result.value = `Error submitting form: ${err.message}`;
-  }
+// Function to handle cancel button
+const handleCancel = () => {
+  // Navigate back to the invoice list page
+  router.push('/list-invoices');
 };
 
 // Fetch employee data and auto-fill the encoder field on component mount
@@ -167,11 +123,20 @@ onMounted(async () => {
     return; // Stop further execution of onMounted
   }
 
+  const storedData = localStorage.getItem('pendingInvoiceData');
+  if (storedData) {
+    const parsedData = JSON.parse(storedData);
+    // Restore data, excluding the file
+    invoiceData.value = { ...parsedData, file: undefined };
+    result.value = "Draft loaded from previous session.";
+  }
+
   try {
-    const res = await listEmployees();
-    if (res.success && res.data) {
-      allEmployees.value = res.data.employees;
-      approvers.value = res.data.employees.filter((emp) => emp.access_role.includes('approver'));
+    const response: ListEmployeesResponse = await listEmployees();
+    if (response && response.success && response.data) {
+      // Correctly assign the array from the nested 'data' property
+      allEmployees.value = response.data.employees;
+      approvers.value = response.data.employees.filter((emp) => emp.access_role.includes('approver'));
       
       const currentUser = allEmployees.value.find(emp => emp.email.toLowerCase() === userEmail.toLowerCase());
 
@@ -179,15 +144,22 @@ onMounted(async () => {
         // Set the encoder to the user's email as requested
         invoiceData.value.encoder = currentUser.email;
         const now = new Date();
-        const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const options: Intl.DateTimeFormatOptions = { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        };
         encodingDate.value = now.toLocaleDateString('en-US', options);
       }
     } else {
-      result.value = res.message || "Failed to fetch employee list.";
+      result.value = "Failed to fetch employee list.";
     }
-  } catch (err: any) {
+  } catch (err) {
     console.error("API call failed:", err);
-    result.value = `Error fetching employees: CORS error (403 Forbidden). The API is rejecting the request from this origin.`;
+    result.value = "Error fetching employees: An unknown error occurred.";
   }
 });
 </script>
@@ -273,13 +245,23 @@ onMounted(async () => {
               <textarea v-model="invoiceData.remarks" id="remarks" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
             </div>
         </div>
-        <!-- Submission Button and Result Message -->
-        <div class="pt-8">
-          <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-            Create Invoice
+        <!-- Submission and Cancel Buttons -->
+        <div class="pt-8 flex justify-end space-x-4">
+          <button
+            type="button"
+            @click="handleCancel"
+            class="inline-flex justify-center py-3 px-6 border border-gray-300 rounded-md shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Cancel
           </button>
-          <p v-if="result" class="mt-4 text-center" :class="{'text-green-600': result.includes('Successfully'), 'text-red-600': !result.includes('Successfully')}">{{ result }}</p>
+          <button
+            type="submit"
+            class="inline-flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Submit
+          </button>
         </div>
+        <p v-if="result" class="mt-4 text-center" :class="{'text-green-600': result.includes('Successfully'), 'text-red-600': !result.includes('Successfully')}">{{ result }}</p>
       </form>
     </div>
   </div>

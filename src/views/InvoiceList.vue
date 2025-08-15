@@ -14,7 +14,6 @@ const fetchInvoices = async () => {
     isLoading.value = true;
     
     // The backend now handles the filtering based on the user's token.
-    // We no longer need to fetch the employee list or pass the encoder ID.
     const response = await listInvoices();
     
     if (response.success && response.data && response.data.invoices) {
@@ -35,8 +34,6 @@ const goToCreateInvoice = () => {
 };
 
 onMounted(() => {
-  // The logic is now much simpler. We just call fetchInvoices and the backend
-  // handles whether to show all invoices or just the user's.
   fetchInvoices();
 });
 </script>
