@@ -100,7 +100,7 @@ const handleSubmit = () => {
 // Function to handle cancel button
 const handleCancel = () => {
   // Navigate back to the invoice list page
-  router.push('/list-invoices');
+  router.push('/list-invoice');
 };
 
 // Fetch employee data and auto-fill the encoder field on component mount
@@ -248,18 +248,19 @@ onMounted(async () => {
         <!-- Submission and Cancel Buttons -->
         <div class="pt-8 flex justify-end space-x-4">
           <button
+            type="submit"
+            class="inline-flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Submit
+          </button>
+          <button
             type="button"
             @click="handleCancel"
             class="inline-flex justify-center py-3 px-6 border border-gray-300 rounded-md shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            class="inline-flex justify-center py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Submit
-          </button>
+       
         </div>
         <p v-if="result" class="mt-4 text-center" :class="{'text-green-600': result.includes('Successfully'), 'text-red-600': !result.includes('Successfully')}">{{ result }}</p>
       </form>

@@ -35,7 +35,7 @@ const routes = [
     path: "/list-invoice",
     name: "ListInvoice",
     component: InvoiceList,
-    meta: { requiresAuth: true } // This route requires authentication
+    meta: { requiresAuth: false } // This route requires authentication
   },
 ];
 

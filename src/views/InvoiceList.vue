@@ -16,20 +16,23 @@ const keyHistory = ref<Array<string | null>>([null]);
 const currentPage = ref(0);
 // Use a ref to store any error messages
 const error = ref<string | null>(null);
+// New ref to store the search term
+const searchTerm = ref('');
 
 const router = useRouter();
 
 /**
  * Fetches invoices from the API for a specific page.
  * @param {string | null} key - The key for the page to fetch.
+ * @param {string | null} search - The search term to filter by.
  */
-const fetchInvoices = async (key: string | null = null) => {
+const fetchInvoices = async (key: string | null = null, search: string | null = null) => {
   try {
     isLoading.value = true;
     error.value = null;
 
-    // Call the API with the provided key for pagination
-    const response = await listInvoices(key);
+    // Call the API with the provided key and search term for pagination and filtering
+    const response = await listInvoices(key, search);
 
     if (response.success && response.data && response.data.invoices) {
       // ✅ REPLACE the current invoices with the new set
@@ -59,7 +62,8 @@ const goToNextPage = () => {
     if (currentPage.value >= keyHistory.value.length) {
       keyHistory.value.push(lastEvaluatedKey.value);
     }
-    fetchInvoices(lastEvaluatedKey.value);
+    // Pass the current search term to the fetch function
+    fetchInvoices(lastEvaluatedKey.value, searchTerm.value);
   }
 };
 
@@ -73,10 +77,22 @@ const goToPreviousPage = () => {
     currentPage.value--;
     // Get the key for the previous page from our history and fetch it
     const prevKey = keyHistory.value[currentPage.value];
-    fetchInvoices(prevKey);
+    // Pass the current search term to the fetch function
+    fetchInvoices(prevKey, searchTerm.value);
     // When going back, we also need to update the next page key to what it was before
     lastEvaluatedKey.value = keyHistory.value[currentPage.value + 1] || null;
   }
+};
+
+/**
+ * Handles a search query submission. Resets pagination and fetches results.
+ */
+const handleSearch = () => {
+  // Reset pagination state to start a new search from the beginning
+  keyHistory.value = [null];
+  currentPage.value = 0;
+  // Fetch invoices with the new search term
+  fetchInvoices(null, searchTerm.value);
 };
 
 /**
@@ -95,8 +111,28 @@ onMounted(() => {
 <template>
   <div class="p-6 md:p-12 bg-gray-50 min-h-screen font-sans">
     <div class="w-full bg-white p-8 rounded-lg shadow-xl">
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0 md:space-x-4">
         <h1 class="text-3xl font-bold tracking-tight text-gray-900">Re-imbursement List</h1>
+        <div class="flex-1 w-full md:w-auto">
+          <label for="search" class="sr-only">Search</label>
+          <div class="relative">
+            <input
+              v-model="searchTerm"
+              @keyup.enter="handleSearch"
+              type="text"
+              id="search"
+              name="search"
+              class="block w-full rounded-md border-gray-300 shadow-sm pl-10 pr-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Search by reference ID..."
+            />
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <!-- Heroicons search SVG -->
+              <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </div>
         <button
           @click="goToCreateInvoice"
           class="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -128,7 +164,7 @@ onMounted(() => {
       </div>
 
       <!-- Pagination Footer -->
-      <div class="mt-6 flex justify-center items-center">
+      <div class="mt-6 flex justify-center items-center space-x-4">
         <!-- Previous Page Button -->
         <button
           @click="goToPreviousPage"

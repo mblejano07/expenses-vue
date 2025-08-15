@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { defineProps } from 'vue';
+// The defineProps macro no longer needs to be imported in <script setup>.
+// The following line has been removed:
+// import { defineProps } from 'vue';
 
 defineProps<{
   title: string;

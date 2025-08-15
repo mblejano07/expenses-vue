@@ -1,3 +1,5 @@
+// services/invoices.ts
+
 import { apiFetch } from "./api";
 
 // This file contains the API interfaces and functions for handling invoices.
@@ -84,13 +86,17 @@ export interface InvoicePayload {
 /**
  * Fetches a paginated list of invoices from the API.
  * @param {string | null} lastEvaluatedKey - The key from the previous page for pagination.
+ * @param {string | null} searchTerm - The term to search for (reference_id or invoice_number).
  * @returns {Promise<ListInvoicesResponse>} - The API response.
  */
-export async function listInvoices(lastEvaluatedKey: string | null = null): Promise<ListInvoicesResponse> {
+export async function listInvoices(lastEvaluatedKey: string | null = null, searchTerm: string | null = null): Promise<ListInvoicesResponse> {
     try {
         const queryParams = new URLSearchParams();
         if (lastEvaluatedKey) {
             queryParams.append("last_evaluated_key", lastEvaluatedKey);
+        }
+        if (searchTerm) {
+            queryParams.append("search", searchTerm);
         }
         // Add the limit parameter with a value of 10
         queryParams.append("limit", "10");
