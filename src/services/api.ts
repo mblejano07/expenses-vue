@@ -1,5 +1,18 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/**
+ * Normalizes a URL by removing leading and trailing slashes.
+ * @param url The URL string to normalize.
+ * @returns The normalized URL string.
+ */
+function normalizeUrl(url: string): string {
+  // Remove trailing slashes
+  let normalized = url.endsWith('/') ? url.slice(0, -1) : url;
+  // Remove leading slashes
+  normalized = normalized.startsWith('/') ? normalized.slice(1) : normalized;
+  return normalized;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -19,7 +32,11 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${authToken}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Use the normalizeUrl function to prevent the double slash issue
+  const baseUrl = normalizeUrl(API_BASE_URL);
+  const normalizedEndpoint = normalizeUrl(endpoint);
+
+  const res = await fetch(`${baseUrl}/${normalizedEndpoint}`, {
     ...options,
     headers,
   });
