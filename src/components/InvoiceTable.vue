@@ -39,6 +39,8 @@ const invoicesWithCalculatedFields = computed(() => {
       payeeName: `${invoice.payee.first_name} ${invoice.payee.last_name}`,
       // Create a display name for the approver
       approverName: `${invoice.approver.first_name} ${invoice.approver.last_name}`,
+      // Create a display name for the encoder
+      encoderName: `${invoice.encoder.first_name} ${invoice.encoder.last_name}`,
     };
   });
 });
@@ -51,6 +53,9 @@ const invoicesWithCalculatedFields = computed(() => {
         <tr>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Reference ID
+          </th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Encoder
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Payee
@@ -77,12 +82,13 @@ const invoicesWithCalculatedFields = computed(() => {
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
         <tr v-if="invoicesWithCalculatedFields.length === 0">
-          <td colspan="8" class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+          <td colspan="9" class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
             No expenses found.
           </td>
         </tr>
         <tr v-else v-for="invoice in invoicesWithCalculatedFields" :key="invoice.reference_id">
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ invoice.reference_id }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invoice.encoderName }}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invoice.payeeName }}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ new Date(invoice.encoding_date).toLocaleDateString() }}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invoice.approverName }}</td>
