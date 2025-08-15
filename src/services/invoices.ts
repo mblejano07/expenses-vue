@@ -84,22 +84,37 @@ export interface InvoicePayload {
 }
 
 /**
+ * Interface for parameters that can be passed to the listInvoices function.
+ */
+export interface ListInvoicesParams {
+  lastEvaluatedKey?: string | null;
+  searchTerm?: string | null;
+  limit?: number;
+}
+
+/**
  * Fetches a paginated list of invoices from the API.
- * @param {string | null} lastEvaluatedKey - The key from the previous page for pagination.
- * @param {string | null} searchTerm - The term to search for (reference_id or invoice_number).
+ * This function is updated to handle search and pagination correctly together.
+ * @param {ListInvoicesParams} params - An object containing optional parameters like searchTerm and lastEvaluatedKey.
  * @returns {Promise<ListInvoicesResponse>} - The API response.
  */
-export async function listInvoices(lastEvaluatedKey: string | null = null, searchTerm: string | null = null): Promise<ListInvoicesResponse> {
+export async function listInvoices(params: ListInvoicesParams = {}): Promise<ListInvoicesResponse> {
     try {
         const queryParams = new URLSearchParams();
-        if (lastEvaluatedKey) {
-            queryParams.append("last_evaluated_key", lastEvaluatedKey);
+        
+        // Add search term if it exists.
+        if (params.searchTerm) {
+            queryParams.append("search", params.searchTerm);
         }
-        if (searchTerm) {
-            queryParams.append("search", searchTerm);
+
+        // Add last evaluated key only if no search term is present.
+        if (params.lastEvaluatedKey && !params.searchTerm) {
+            queryParams.append("last_evaluated_key", params.lastEvaluatedKey);
         }
-        // Add the limit parameter with a value of 10
-        queryParams.append("limit", "10");
+
+        // Add the limit parameter with a value of 10.
+        // If a limit is provided in params, use that instead.
+        queryParams.append("limit", (params.limit || 10).toString());
 
         const res = await apiFetch<ListInvoicesResponse>(`/invoices?${queryParams.toString()}`, {
             method: "GET",

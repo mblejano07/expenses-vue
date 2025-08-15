@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import InvoiceTable from "@/components/InvoiceTable.vue";
-import { listInvoices, type Invoice } from "@/services/invoices";
+import { listInvoices, type Invoice, type ListInvoicesResponse } from "@/services/invoices";
 
 // Use a ref to store the list of invoices for the current page
 const invoices = ref<Invoice[]>([]);
@@ -18,6 +18,8 @@ const currentPage = ref(0);
 const error = ref<string | null>(null);
 // New ref to store the search term
 const searchTerm = ref('');
+// A variable to hold the debounce timer ID
+let searchDebounce: number | undefined;
 
 const router = useRouter();
 
@@ -31,8 +33,8 @@ const fetchInvoices = async (key: string | null = null, search: string | null = 
     isLoading.value = true;
     error.value = null;
 
-    // Call the API with the provided key and search term for pagination and filtering
-    const response = await listInvoices(key, search);
+    // The API call now correctly handles both key-based pagination and a search term.
+    const response = await listInvoices({ lastEvaluatedKey: key, searchTerm: search });
 
     if (response.success && response.data && response.data.invoices) {
       // ✅ REPLACE the current invoices with the new set
@@ -86,6 +88,7 @@ const goToPreviousPage = () => {
 
 /**
  * Handles a search query submission. Resets pagination and fetches results.
+ * This function is now called by the debounced watcher.
  */
 const handleSearch = () => {
   // Reset pagination state to start a new search from the beginning
@@ -101,6 +104,18 @@ const handleSearch = () => {
 const goToCreateInvoice = () => {
   router.push('/create-invoice');
 };
+
+// Use a watcher to listen for changes to the searchTerm
+watch(searchTerm, (newQuery) => {
+  // Clear any existing debounce timer to prevent old searches from firing
+  clearTimeout(searchDebounce);
+  
+  // Set a new timer. The search will fire after 500ms of inactivity.
+  searchDebounce = setTimeout(() => {
+    // Call the handleSearch function which resets pagination and fetches data
+    handleSearch();
+  }, 500);
+});
 
 // Fetch the initial page of invoices when the component mounts
 onMounted(() => {
@@ -118,7 +133,6 @@ onMounted(() => {
           <div class="relative">
             <input
               v-model="searchTerm"
-              @keyup.enter="handleSearch"
               type="text"
               id="search"
               name="search"
@@ -168,7 +182,7 @@ onMounted(() => {
         <!-- Previous Page Button -->
         <button
           @click="goToPreviousPage"
-          :disabled="isLoading || currentPage === 0"
+          :disabled="isLoading || currentPage === 0 || !!searchTerm"
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
         >
           Previous Page
@@ -176,7 +190,7 @@ onMounted(() => {
         <!-- Next Page Button -->
         <button
           @click="goToNextPage"
-          :disabled="isLoading || !lastEvaluatedKey"
+          :disabled="isLoading || !lastEvaluatedKey || !!searchTerm"
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
         >
           Next Page
