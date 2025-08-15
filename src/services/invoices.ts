@@ -80,7 +80,7 @@ export interface InvoicePayload {
     payee_account: string;
     approver: string;
     remarks?: string;
-    file?: File; // Optional file for multipart
+    file_upload?: File; // Optional file for multipart
 }
 
 /**
@@ -154,16 +154,16 @@ export async function listInvoices(params: ListInvoicesParams = {}): Promise<Lis
  * @param {InvoicePayload} payload - The invoice data to be sent.
  * @returns {Promise<CreateInvoiceResponse>} - The API response.
  */
-export async function createInvoice(payload: InvoicePayload): Promise<CreateInvoiceResponse> {
+export async function createInvoice(formData: FormData, payload: InvoicePayload): Promise<CreateInvoiceResponse> {
     try {
-        if (payload.file) {
+        if (payload.file_upload) {
             // Case 1: A file is present, so we use multipart/form-data
             const formData = new FormData();
             const jsonPayload = { ...payload };
-            delete jsonPayload.file;
+            delete jsonPayload.file_upload;
 
             formData.append("body", JSON.stringify(jsonPayload));
-            formData.append("file", payload.file);
+            formData.append("file", payload.file_upload);
 
             const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
                 method: "POST",
