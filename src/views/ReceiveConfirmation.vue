@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import { createInvoice, type InvoicePayload, type CreateInvoiceResponse } from "@/services/invoices";
+import { ref, computed, onMounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { getInvoiceByRefId, updateInvoiceStatus, type Invoice } from "@/services/invoices";
 import ConfirmationCard from "@/components/ConfirmationCard.vue";
 import StatusModal from "@/components/StatusModal.vue";
-import { usePendingInvoiceStore } from '@/stores/pendingInvoice';
 
+// Use router to navigate and route to get params
 const router = useRouter();
-const isLoading = ref(false);
-const pendingInvoiceStore = usePendingInvoiceStore();
+const route = useRoute();
+
+// Refs for controlling component state
+const isLoading = ref(true);
+const invoiceData = ref<Invoice | null>(null);
+const fetchError = ref<string | null>(null);
 
 // Refs for controlling the modal's state and content
 const isModalVisible = ref(false);
@@ -16,8 +20,34 @@ const modalTitle = ref("");
 const modalMessage = ref("");
 const isSuccess = ref(false);
 
-// Initialize the invoiceData ref directly from the Pinia store
-const invoiceData = ref<InvoicePayload & { file?: File } | null>(pendingInvoiceStore.invoiceData);
+/**
+ * Fetches the invoice details from the API using the reference_id from the URL.
+ */
+const fetchInvoice = async () => {
+  isLoading.value = true;
+  fetchError.value = null;
+  const referenceId = route.params.id as string;
+
+  if (!referenceId) {
+    fetchError.value = "No invoice ID provided in the URL.";
+    isLoading.value = false;
+    return;
+  }
+
+  try {
+    invoiceData.value = await getInvoiceByRefId(referenceId);
+    if (!invoiceData.value) {
+      fetchError.value = "Invoice not found or an error occurred.";
+    }
+  } catch (error) {
+    console.error("Failed to fetch invoice:", error);
+    fetchError.value = "Failed to load invoice details.";
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(fetchInvoice);
 
 // A simple helper function to format currency
 const formatCurrency = (amount: number) => {
@@ -61,66 +91,58 @@ const handleModalClose = () => {
 };
 
 /**
- * Submits the invoice data to the API.
+ * Submits the "receive" action for the invoice.
  */
-const submitInvoice = async () => {
+const confirmReceive = async () => {
   if (!invoiceData.value) {
-    showModal("Submission Failed", "No invoice data found to submit.", false);
+    showModal("Action Failed", "No invoice data found.", false);
     return;
   }
 
   isLoading.value = true;
 
   try {
-    const payload: InvoicePayload = {
-      company_name: invoiceData.value.company_name,
-      tin: invoiceData.value.tin,
-      invoice_number: invoiceData.value.invoice_number,
-      transaction_date: invoiceData.value.transaction_date,
-      items: invoiceData.value.items,
-      encoder: invoiceData.value.encoder,
-      payee: invoiceData.value.payee,
-      payee_account: invoiceData.value.payee_account,
-      approver: invoiceData.value.approver,
-      remarks: invoiceData.value.remarks,
-      // Pass the file and file_upload to the payload
-      file: invoiceData.value.file,
-      file_upload: invoiceData.value.file,
-    };
-    
-    // The createInvoice function now handles FormData creation internally, so you only need to pass the payload.
-    const response: CreateInvoiceResponse = await createInvoice(payload);
+    const response = await updateInvoiceStatus(invoiceData.value.reference_id,"Received");
 
     if (response.success) {
-      showModal("Success!", "Invoice submitted successfully!", true);
-      pendingInvoiceStore.clearInvoiceData(); // Clear the store on success
+      showModal("Success!", "Invoice status updated to 'Received'.", true);
     } else {
-      showModal("Submission Failed", response.message || "An unknown error occurred.", false);
+      showModal("Action Failed", response.message || "An unknown error occurred.", false);
     }
   } catch (error) {
-    console.error("Failed to submit invoice:", error);
-    showModal("Submission Failed", "An error occurred while submitting the invoice.", false);
+    console.error("Failed to receive invoice:", error);
+    showModal("Action Failed", "An error occurred while receiving the invoice.", false);
   } finally {
     isLoading.value = false;
   }
 };
 
 /**
- * Navigates back to the form page without clearing data.
+ * Navigates back to the invoice list page.
  */
-const goBackToForm = () => {
-  router.push("/create-invoice");
+const goBackToList = () => {
+  router.push("/list-invoice");
 };
 </script>
 
 <template>
   <div class="bg-gray-50 min-h-screen font-sans flex items-center justify-center p-6">
-    <div v-if="invoiceData" class="w-full max-w-4xl bg-white p-8 rounded-lg shadow-xl">
-      <h2 class="text-3xl font-bold tracking-tight text-center text-gray-900 mb-8">Confirm Reimbursement Details</h2>
+    <div v-if="isLoading" class="text-center py-10">
+      <p>Loading invoice details...</p>
+    </div>
+    <div v-else-if="fetchError" class="text-center p-12 bg-white rounded-lg shadow-xl max-w-lg mx-auto">
+      <h2 class="text-2xl font-bold text-gray-900">Error</h2>
+      <p class="mt-2 text-red-500">{{ fetchError }}</p>
+      <button @click="goBackToList" class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        Go Back
+      </button>
+    </div>
+    <div v-else-if="invoiceData" class="w-full max-w-4xl bg-white p-8 rounded-lg shadow-xl">
+      <h2 class="text-3xl font-bold tracking-tight text-center text-gray-900 mb-8">Receive Invoice Details</h2>
       
-      <ConfirmationCard title="Reimbursement Details">
+      <ConfirmationCard title="Invoice Details">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <p><strong>TIN:</strong> {{ invoiceData.tin }}</p>
+          <p><strong>Ref ID:</strong> {{ invoiceData.reference_id }}</p>
           <p><strong>Company Name:</strong> {{ invoiceData.company_name }}</p>
           <p><strong>Invoice Number:</strong> {{ invoiceData.invoice_number }}</p>
           <p><strong>Transaction Date:</strong> {{ invoiceData.transaction_date }}</p>
@@ -164,36 +186,31 @@ const goBackToForm = () => {
         </div>
       </ConfirmationCard>
 
-
       <ConfirmationCard title="Other Details">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
- 
-          <p><strong>Encoder:</strong> {{ invoiceData.encoder }}</p>
-          <p><strong>Approver:</strong> {{ invoiceData.approver }}</p>
-          <p><strong>Payee:</strong> {{ invoiceData.payee }}</p>
+          <p><strong>Encoder:</strong> {{ invoiceData.encoder.first_name }} {{ invoiceData.encoder.last_name }}</p>
+          <p><strong>Approver:</strong> {{ invoiceData.approver.first_name }} {{ invoiceData.approver.last_name }}</p>
+          <p><strong>Payee:</strong> {{ invoiceData.payee.first_name }} {{ invoiceData.payee.last_name }}</p>
           <p><strong>Payee Account:</strong> {{ invoiceData.payee_account }}</p>
           <p class="md:col-span-2"><strong>Remarks:</strong> {{ invoiceData.remarks || 'N/A' }}</p>
+          <p class="md:col-span-2"><strong>Status:</strong> <span class="font-semibold">{{ invoiceData.status }}</span></p>
         </div>
       </ConfirmationCard>
 
-
       <div class="mt-8 flex justify-end space-x-4">
-        <button @click="submitInvoice" :disabled="isLoading" type="button" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400">
-          <span v-if="isLoading">Submitting...</span>
-          <span v-else>Confirm & Submit</span>
+        <button
+          @click="confirmReceive"
+          :disabled="isLoading || invoiceData.status !== 'Pending'"
+          type="button"
+          class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+        >
+          <span v-if="isLoading">Processing...</span>
+          <span v-else>Receive</span>
         </button>
-        <button @click="goBackToForm" type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <button @click="goBackToList" type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
           Go Back
         </button>
       </div>
-    </div>
-    
-    <div v-else class="text-center p-12 bg-white rounded-lg shadow-xl max-w-lg mx-auto">
-      <h2 class="text-2xl font-bold text-gray-900">No Invoice Data Found</h2>
-      <p class="mt-2 text-gray-500">Please go back to the form to fill in the details.</p>
-      <button @click="goBackToForm" class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-        Go Back to Form
-      </button>
     </div>
   </div>
   <StatusModal :is-visible="isModalVisible" :title="modalTitle" :message="modalMessage" :is-success="isSuccess" @close="handleModalClose" />

@@ -5,29 +5,36 @@ import InvoiceItemsTable from "@/components/InvoiceItemsTable.vue";
 import { listEmployees, type Employee } from "@/services/employees";
 import { type InvoicePayload } from "@/services/invoices";
 import { type ListEmployeesResponse } from "@/services/employees";
+import { usePendingInvoiceStore } from '@/stores/pendingInvoice';
+
+// Use the Pinia store
+const pendingInvoiceStore = usePendingInvoiceStore();
 
 // Define the data structure for the form to match your JSON
-const invoiceData = ref<InvoicePayload & { file?: File }>({
-  company_name: "",
-  tin: "",
-  invoice_number: "",
-  transaction_date: new Date().toISOString().slice(0, 10), // Default to today's date
-  items: [
-    {
-      particulars: "",
-      project_class: "",
-      account: "",
-      vatable: true,
-      amount: 0,
-    },
-  ],
-  encoder: "",
-  payee: "", // This will now hold the payee's email
-  payee_account: "",
-  approver: "", // This will now hold the approver's email
-  remarks: "",
-  file: undefined,
-});
+const invoiceData = ref<InvoicePayload>(
+  pendingInvoiceStore.invoiceData || {
+    company_name: "",
+    tin: "",
+    invoice_number: "",
+    transaction_date: new Date().toISOString().slice(0, 10), // Default to today's date
+    items: [
+      {
+        particulars: "",
+        project_class: "",
+        account: "",
+        vatable: true,
+        amount: 0,
+      },
+    ],
+    encoder: "",
+    payee: "", // This will now hold the payee's email
+    payee_account: "",
+    approver: "", // This will now hold the approver's email
+    remarks: "",
+  }
+);
+// Use a separate ref for the file to handle it more cleanly
+const file = ref<File | undefined>(undefined);
 
 const result = ref<string>("");
 const allEmployees = ref<Employee[]>([]);
@@ -55,9 +62,9 @@ function decodeJwt(token: string) {
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    invoiceData.value.file = target.files[0];
+    file.value = target.files[0];
   } else {
-    invoiceData.value.file = undefined;
+    file.value = undefined;
   }
 };
 
@@ -91,8 +98,9 @@ const handlePayeeChange = () => {
 
 // Function to handle form submission
 const handleSubmit = () => {
-  // ✅ This is the correct line to store the form data in localStorage before navigating
-  localStorage.setItem('pendingInvoiceData', JSON.stringify(invoiceData.value));
+  // IMPORTANT: Save BOTH the invoice data and the file to the store
+  pendingInvoiceStore.setInvoiceData(invoiceData.value);
+  
   // Navigate to the confirmation page
   router.push("/confirm-invoice");
 };
@@ -123,11 +131,9 @@ onMounted(async () => {
     return; // Stop further execution of onMounted
   }
 
-  const storedData = localStorage.getItem('pendingInvoiceData');
-  if (storedData) {
-    const parsedData = JSON.parse(storedData);
-    // Restore data, excluding the file
-    invoiceData.value = { ...parsedData, file: undefined };
+  // Restore data from the store if it exists
+  if (pendingInvoiceStore.invoiceData) {
+    invoiceData.value = pendingInvoiceStore.invoiceData;
     result.value = "Draft loaded from previous session.";
   }
 
@@ -205,8 +211,8 @@ onMounted(async () => {
           </div>
           
           <div>
-            <label for="file-upload" class="block text-sm font-medium text-gray-700">Upload Invoice File</label>
-            <input id="file-upload" type="file" @change="handleFileChange" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+            <label for="file" class="block text-sm font-medium text-gray-700">Upload Invoice File</label>
+            <input id="file" type="file" @change="handleFileChange" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
           </div>
         </div>
 
@@ -264,6 +270,6 @@ onMounted(async () => {
         </div>
         <p v-if="result" class="mt-4 text-center" :class="{'text-green-600': result.includes('Successfully'), 'text-red-600': !result.includes('Successfully')}">{{ result }}</p>
       </form>
-    </div>
+    </div> 
   </div>
 </template>

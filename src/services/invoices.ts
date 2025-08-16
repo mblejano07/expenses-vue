@@ -46,7 +46,8 @@ export interface Invoice {
   };
   file_url: string;
   encoding_date: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  // This is the first place to update. Add 'Received' to the status union type.
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Received';
   remarks?: string;
 }
 
@@ -81,6 +82,20 @@ export interface InvoicePayload {
     approver: string;
     remarks?: string;
     file?: File; // Optional file for multipart
+    file_upload?: File; // Optional file for multipart
+}
+
+/**
+ * Interface for the response when creating an invoice.
+ * @interface
+ */
+export interface CreateInvoiceResponse {
+    success: boolean;
+    message?: string;
+    data?: {
+        reference_id: string;
+    };
+    errors?: Record<string, string>;
 }
 
 /**
@@ -136,23 +151,41 @@ export async function listInvoices(params: ListInvoicesParams = {}): Promise<Lis
 }
 
 /**
+ * Fetches a single invoice by its reference ID.
+ * @param {string} referenceId The reference ID of the invoice to fetch.
+ * @returns {Promise<Invoice | null>} The invoice data or null if not found.
+ */
+export async function getInvoiceByRefId(referenceId: string): Promise<Invoice | null> {
+    try {
+      const res = await apiFetch<{ success: boolean, data: Invoice | null }>(`/invoices/${referenceId}`, {
+        method: "GET",
+      });
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch invoice:", error);
+      return null;
+    }
+  }
+  
+/**
  * Creates a new invoice by submitting a payload to the API.
  * Supports both JSON and multipart form data (if a file is present).
  * @param {InvoicePayload} payload - The invoice data to be sent.
- * @returns {Promise<any>} - The API response.
+ * @returns {Promise<CreateInvoiceResponse>} - The API response.
  */
-export async function createInvoice(payload: InvoicePayload): Promise<any> {
+export async function createInvoice(payload: InvoicePayload): Promise<CreateInvoiceResponse> {
     try {
-        if (payload.file) {
+        if (payload.file_upload) {
             // Case 1: A file is present, so we use multipart/form-data
             const formData = new FormData();
             const jsonPayload = { ...payload };
-            delete jsonPayload.file;
+            delete jsonPayload.file_upload;
+            delete jsonPayload.file; // Ensure 'file' is also removed if present.
 
             formData.append("body", JSON.stringify(jsonPayload));
-            formData.append("file", payload.file);
+            formData.append("file", payload.file_upload);
 
-            const res = await apiFetch("/invoices", {
+            const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
                 method: "POST",
                 body: formData,
             });
@@ -160,7 +193,7 @@ export async function createInvoice(payload: InvoicePayload): Promise<any> {
             return res;
         } else {
             // Case 2: No file is present, so we send a standard JSON body
-            const res = await apiFetch("/invoices", {
+            const res = await apiFetch<CreateInvoiceResponse>("/invoices", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -173,3 +206,30 @@ export async function createInvoice(payload: InvoicePayload): Promise<any> {
         throw err;
     }
 }
+/**
+ * Sends a request to the API to update an invoice's status.
+ * @param {string} invoiceId - The reference_id of the invoice to be updated.
+ * @param {string} status - The new status to set for the invoice.
+ * @returns {Promise<CreateInvoiceResponse>} - The API response.
+ */
+export async function updateInvoiceStatus(invoiceId: string, status: 'Pending' | 'Approved' | 'Rejected' | 'Received'): Promise<CreateInvoiceResponse> {
+  try {
+    const res = await apiFetch<CreateInvoiceResponse>(`/invoices/${invoiceId}`, {
+      method: "PUT", // Using PATCH for a partial update
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Send a JSON body to update the status field
+      body: JSON.stringify({ status: status }),
+    });
+    return res;
+  } catch (err: any) {
+    // It's good practice to re-throw a structured error
+    throw {
+      success: false,
+      message: err.message || "Network error",
+      errors: undefined,
+    };
+  }
+}
+
