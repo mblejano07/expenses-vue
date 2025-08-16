@@ -215,7 +215,7 @@ export async function createInvoice(payload: InvoicePayload): Promise<CreateInvo
 export async function updateInvoiceStatus(invoiceId: string, status: 'Pending' | 'Approved' | 'Rejected' | 'Received'): Promise<CreateInvoiceResponse> {
   try {
     const res = await apiFetch<CreateInvoiceResponse>(`/invoices/${invoiceId}`, {
-      method: "PATCH", // Using PATCH for a partial update
+      method: "PUT", // Using PATCH for a partial update
       headers: {
         'Content-Type': 'application/json',
       },
