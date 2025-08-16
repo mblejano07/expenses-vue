@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, computed } from "vue";
+import { defineProps, defineEmits, computed, ref, onMounted } from "vue";
+import { listAccounts } from "@/services/accounts";
 
 // Define the interface for an invoice item
 interface InvoiceItem {
@@ -45,6 +46,36 @@ const totalVatAmount = computed(() => {
     return sum;
   }, 0);
 });
+
+// A ref to hold the list of accounts for the dropdown
+const accounts = ref<string[]>([]);
+const accountsLoading = ref(true);
+const accountsError = ref<string | null>(null);
+
+/**
+ * Fetches the list of accounts from the API and populates the dropdown.
+ */
+const fetchAccounts = async () => {
+  try {
+    accountsLoading.value = true;
+    const response = await listAccounts();
+    if (response.success && response.data) {
+      accounts.value = response.data;
+    } else {
+      accountsError.value = response.message || "Failed to fetch accounts.";
+    }
+  } catch (err: any) {
+    accountsError.value = err.message || "An unknown error occurred while fetching accounts.";
+    console.error("Error fetching accounts:", err);
+  } finally {
+    accountsLoading.value = false;
+  }
+};
+
+// Fetch accounts when the component is mounted
+onMounted(() => {
+  fetchAccounts();
+});
 </script>
 
 <template>
@@ -55,7 +86,7 @@ const totalVatAmount = computed(() => {
         <thead class="bg-gray-50">
           <tr>
             <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Particulars</th>
-            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Class</th>
+            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class/Project</th>
             <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
             <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vatable</th>
             <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -63,7 +94,21 @@ const totalVatAmount = computed(() => {
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="(item, index) in items" :key="index">
+          <tr v-if="accountsLoading">
+            <td colspan="6" class="p-4 text-center text-gray-500">
+              <svg class="animate-spin h-5 w-5 text-gray-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading accounts...
+            </td>
+          </tr>
+          <tr v-else-if="accountsError">
+            <td colspan="6" class="p-4 text-center text-red-600">
+              Error: {{ accountsError }}
+            </td>
+          </tr>
+          <tr v-else v-for="(item, index) in items" :key="index">
             <td class="p-3 whitespace-nowrap">
               <input v-model="item.particulars" type="text" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </td>
@@ -71,7 +116,12 @@ const totalVatAmount = computed(() => {
               <input v-model="item.project_class" type="text" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </td>
             <td class="p-3 whitespace-nowrap">
-              <input v-model="item.account" type="text" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+              <select v-model="item.account" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option disabled value="">Select an account</option>
+                <option v-for="account in accounts" :key="account" :value="account">
+                  {{ account }}
+                </option>
+              </select>
             </td>
             <td class="p-3 whitespace-nowrap">
               <input v-model="item.vatable" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
