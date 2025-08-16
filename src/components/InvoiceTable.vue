@@ -5,7 +5,12 @@ import type { Invoice } from "@/services/invoices";
 // Define the props this component will accept
 const props = defineProps<{
   invoices: Invoice[];
+  // The userRole is now an array of strings to support multiple roles.
+  userRole: ('encoder' | 'payee' | 'approver' | 'admin' | 'receiver' | 'standard')[];
 }>();
+
+// Define the emits for the 'receive' action
+const emit = defineEmits(['receive-invoice']);
 
 // A helper function to format a number as a currency string
 const formatCurrency = (value: number) => {
@@ -44,15 +49,24 @@ const invoicesWithCalculatedFields = computed(() => {
     };
   });
 });
+
+// A computed property to check if the "Receive" button should be visible.
+// This is true if the user's roles include 'receiver' OR 'admin'.
+const isReceivedButtonVisible = computed(() => {
+  return props.userRole.includes('receiver') || props.userRole.includes('admin');
+});
+
 </script>
 
 <template>
-  <div class="overflow-x-auto bg-white rounded-lg shadow-md p-4">
+  <!-- The `overflow-x-auto` class makes the container horizontally scrollable on smaller screens. -->
+  <div class="overflow-x-auto">
+    <!-- The `min-w-full` class ensures the table takes up the full width of its container, even if its content is wider. -->
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Reference ID
+            Ref ID
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Encoder
@@ -61,7 +75,7 @@ const invoicesWithCalculatedFields = computed(() => {
             Payee
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Encoded Date
+            Encoding Date
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Approver
@@ -70,7 +84,7 @@ const invoicesWithCalculatedFields = computed(() => {
             Transaction Date
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Vat Amount
+            VAT Amount
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Total Sales
@@ -78,15 +92,14 @@ const invoicesWithCalculatedFields = computed(() => {
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Status
           </th>
+          <!-- The 'Receive' button header only appears if the user has the 'receiver' or 'admin' role. -->
+          <th v-if="isReceivedButtonVisible" scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Actions
+          </th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
-        <tr v-if="invoicesWithCalculatedFields.length === 0">
-          <td colspan="9" class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-            No expenses found.
-          </td>
-        </tr>
-        <tr v-else v-for="invoice in invoicesWithCalculatedFields" :key="invoice.reference_id">
+        <tr v-for="invoice in invoicesWithCalculatedFields" :key="invoice.reference_id">
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ invoice.reference_id }}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invoice.encoderName }}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invoice.payeeName }}</td>
@@ -101,9 +114,21 @@ const invoicesWithCalculatedFields = computed(() => {
               'bg-yellow-100 text-yellow-800': invoice.status === 'Pending',
               'bg-green-100 text-green-800': invoice.status === 'Approved',
               'bg-red-100 text-red-800': invoice.status === 'Rejected',
+              'bg-blue-100 text-blue-800': invoice.status === 'Received',
             }">
               {{ invoice.status }}
             </span>
+          </td>
+          <!-- The "Receive" button column -->
+          <td v-if="isReceivedButtonVisible" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <button
+              v-if="invoice.status === 'Pending'"
+              @click="emit('receive-invoice', invoice.reference_id)"
+              class="text-indigo-600 hover:text-indigo-900"
+            >
+              Receive
+            </button>
+            <span v-else class="text-gray-400">N/A</span>
           </td>
         </tr>
       </tbody>

@@ -23,6 +23,11 @@ let searchDebounce: number | undefined;
 
 const router = useRouter();
 
+// The user can now have multiple roles, so we use an array of strings.
+// You can set it to any combination, like ['admin', 'receiver'].
+// Mock user roles for demonstration purposes. Replace with your actual auth logic.
+const userRole = ref<('encoder' | 'payee' | 'approver' | 'admin' | 'receiver' | 'standard')[]>(['receiver']);
+
 /**
  * Fetches invoices from the API for a specific page.
  * @param {string | null} key - The key for the page to fetch.
@@ -37,7 +42,7 @@ const fetchInvoices = async (key: string | null = null, search: string | null = 
     const response = await listInvoices({ lastEvaluatedKey: key, searchTerm: search });
 
     if (response.success && response.data && response.data.invoices) {
-      // ✅ REPLACE the current invoices with the new set
+      // REPLACE the current invoices with the new set
       invoices.value = response.data.invoices;
       // Store the key for the next page
       lastEvaluatedKey.value = response.data.last_evaluated_key;
@@ -56,16 +61,16 @@ const fetchInvoices = async (key: string | null = null, search: string | null = 
  * Handles the "Next Page" button click.
  */
 const goToNextPage = () => {
-  // Only fetch the next page if a key is available
-  if (lastEvaluatedKey.value) {
+  // Only fetch the next page if a key is available and a search term is not active
+  if (lastEvaluatedKey.value && !searchTerm.value) {
     // Increment the page and store the new key in history
     currentPage.value++;
     // If we've moved forward to a page we've never seen before, add its key to the history
     if (currentPage.value >= keyHistory.value.length) {
       keyHistory.value.push(lastEvaluatedKey.value);
     }
-    // Pass the current search term to the fetch function
-    fetchInvoices(lastEvaluatedKey.value, searchTerm.value);
+    // Fetch the next page using the key
+    fetchInvoices(lastEvaluatedKey.value);
   }
 };
 
@@ -79,11 +84,20 @@ const goToPreviousPage = () => {
     currentPage.value--;
     // Get the key for the previous page from our history and fetch it
     const prevKey = keyHistory.value[currentPage.value];
-    // Pass the current search term to the fetch function
-    fetchInvoices(prevKey, searchTerm.value);
+    // Fetch the previous page using the key
+    fetchInvoices(prevKey);
     // When going back, we also need to update the next page key to what it was before
     lastEvaluatedKey.value = keyHistory.value[currentPage.value + 1] || null;
   }
+};
+
+/**
+ * Handles the "Receive" action from the table component.
+ * @param {string} invoiceId - The ID of the invoice to receive.
+ */
+const handleReceiveInvoice = (invoiceId: string) => {
+  // Redirect to the ReceiveConfirmation page with the invoice ID as a URL parameter
+  router.push({ name: 'InvoiceReceive', params: { id: invoiceId } });
 };
 
 /**
@@ -109,7 +123,7 @@ const goToCreateInvoice = () => {
 watch(searchTerm, (newQuery) => {
   // Clear any existing debounce timer to prevent old searches from firing
   clearTimeout(searchDebounce);
-  
+
   // Set a new timer. The search will fire after 500ms of inactivity.
   searchDebounce = setTimeout(() => {
     // Call the handleSearch function which resets pagination and fetches data
@@ -174,7 +188,7 @@ onMounted(() => {
       
       <!-- Invoice Table -->
       <div v-else>
-        <InvoiceTable :invoices="invoices" />
+        <InvoiceTable :invoices="invoices" :userRole="userRole" @receive-invoice="handleReceiveInvoice" />
       </div>
 
       <!-- Pagination Footer -->

@@ -4,9 +4,10 @@ import Verify from "../views/Verify.vue";
 import InvoiceForm from "../views/InvoiceForm.vue";
 import InvoiceList from "../views/InvoiceList.vue";
 import InvoiceConfirm from "../views/InvoiceConfirmation.vue";
+import InvoiceReceive from "../views/ReceiveConfirmation.vue";
 
 const routes = [
-  { path: "/", redirect: "/request" }, 
+  { path: "/", redirect: "/login" }, 
   {
     path: "/confirm-invoice",
     name: "InvoiceConfirm",
@@ -14,7 +15,13 @@ const routes = [
     meta: { requiresAuth: true } // This route does not require authentication
   },
   {
-    path: "/request",
+    path: "/receive-invoice/:id",
+    name: "InvoiceReceive",
+    component: InvoiceReceive,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/login",
     name: "RequestOtp",
     component: RequestOtp,
     meta: { requiresAuth: false } // This route does not require authentication
