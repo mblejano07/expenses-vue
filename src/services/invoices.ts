@@ -46,7 +46,6 @@ export interface Invoice {
   };
   file_url: string;
   encoding_date: string;
-  // This is the first place to update. Add 'Received' to the status union type.
   status: 'Pending' | 'Approved' | 'Rejected' | 'Received';
   remarks?: string;
 }
@@ -100,17 +99,20 @@ export interface CreateInvoiceResponse {
 
 /**
  * Interface for parameters that can be passed to the listInvoices function.
+ * This has been updated to include sortBy and sortOrder.
  */
 export interface ListInvoicesParams {
   lastEvaluatedKey?: string | null;
   searchTerm?: string | null;
   limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 /**
  * Fetches a paginated list of invoices from the API.
- * This function is updated to handle search and pagination correctly together.
- * @param {ListInvoicesParams} params - An object containing optional parameters like searchTerm and lastEvaluatedKey.
+ * This function is updated to handle search, pagination, and sorting.
+ * @param {ListInvoicesParams} params - An object containing optional parameters.
  * @returns {Promise<ListInvoicesResponse>} - The API response.
  */
 export async function listInvoices(params: ListInvoicesParams = {}): Promise<ListInvoicesResponse> {
@@ -130,6 +132,14 @@ export async function listInvoices(params: ListInvoicesParams = {}): Promise<Lis
         // Add the limit parameter with a value of 10.
         // If a limit is provided in params, use that instead.
         queryParams.append("limit", (params.limit || 10).toString());
+
+        // NEW: Add sorting parameters
+        // The default sorting is by encoding_date in descending order (latest first).
+        const sortBy = params.sortBy || 'encoding_date';
+        const sortOrder = params.sortOrder || 'desc';
+
+        queryParams.append("sort_by", sortBy);
+        queryParams.append("sort_order", sortOrder);
 
         const res = await apiFetch<ListInvoicesResponse>(`/invoices?${queryParams.toString()}`, {
             method: "GET",
@@ -232,4 +242,3 @@ export async function updateInvoiceStatus(invoiceId: string, status: 'Pending' |
     };
   }
 }
-
