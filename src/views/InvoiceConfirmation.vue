@@ -50,6 +50,17 @@ const showModal = (title: string, message: string, success: boolean) => {
 };
 
 /**
+ * Handles the modal's close event.
+ * If the submission was a success, it redirects to the invoice list.
+ */
+const handleModalClose = () => {
+  isModalVisible.value = false;
+  if (isSuccess.value) {
+    router.push("/list-invoice");
+  }
+};
+
+/**
  * Submits the invoice data to the API.
  */
 const submitInvoice = async () => {
@@ -80,7 +91,7 @@ const submitInvoice = async () => {
     formData.append('invoice_data', JSON.stringify(payload));
     // Append the file if it exists
     if (invoiceData.value.file) {
-      formData.append('file_upload', invoiceData.value.file);
+      formData.append('file', invoiceData.value.file);
     }
 
     const response: CreateInvoiceResponse = await createInvoice(formData,payload);
@@ -190,7 +201,5 @@ const goBackToForm = () => {
       </button>
     </div>
   </div>
-  <StatusModal :is-visible="isModalVisible" :title="modalTitle" :message="modalMessage" :is-success="isSuccess" @close="isModalVisible = false" />
+  <StatusModal :is-visible="isModalVisible" :title="modalTitle" :message="modalMessage" :is-success="isSuccess" @close="handleModalClose" />
 </template>
-
-|

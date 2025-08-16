@@ -211,8 +211,8 @@ onMounted(async () => {
           </div>
           
           <div>
-            <label for="file_upload" class="block text-sm font-medium text-gray-700">Upload Invoice File</label>
-            <input id="file_upload" type="file" @change="handleFileChange" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+            <label for="file" class="block text-sm font-medium text-gray-700">Upload Invoice File</label>
+            <input id="file" type="file" @change="handleFileChange" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
           </div>
         </div>
 
